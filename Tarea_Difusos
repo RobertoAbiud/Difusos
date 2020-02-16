@@ -1,0 +1,89 @@
+import com.fuzzylite.*;
+import com.fuzzylite.activation.*;
+import com.fuzzylite.defuzzifier.*;
+import com.fuzzylite.factory.*;
+import com.fuzzylite.hedge.*;
+import com.fuzzylite.imex.*;
+import com.fuzzylite.norm.*;
+import com.fuzzylite.norm.s.*;
+import com.fuzzylite.norm.t.*;
+import com.fuzzylite.rule.*;
+import com.fuzzylite.term.*;
+import com.fuzzylite.variable.*;
+
+public class difusos{
+public static void main(String[] args){
+
+Engine engine = new Engine();
+engine.setName("Navegación automática");
+engine.setDescription("Navegación automática de la nave TARS");
+
+InputVariable Angulo = new InputVariable();
+Angulo.setName("Angulo");
+Angulo.setDescription("Angulo de la nave");
+Angulo.setEnabled(true);
+Angulo.setRange(0, 150);
+Angulo.setLockValueInRange(false);
+Angulo.addTerm(new Ramp("PEQUEÑO",  50, 10));
+Angulo.addTerm(new Trapezoid("MEDIANO", 30, 50, 70, 100));
+Angulo.addTerm(new Ramp("GRANDE", 90, 150));
+engine.addInputVariable(Angulo);
+
+InputVariable Distancia = new InputVariable();
+Distancia.setName("Distancia");
+Distancia.setDescription("Distancia de la montaña");
+Distancia.setEnabled(true);
+Distancia.setRange(0, 150);
+Distancia.setLockValueInRange(false);
+Distancia.addTerm(new Ramp("CERCANA", 70, 10));
+Distancia.addTerm(new Trapezoid("LEJANA", 50, 70, 100, 120));
+Distancia.addTerm(new Ramp("MUY_LEJANA", 100, 120));
+engine.addInputVariable(Distancia);
+
+
+OutputVariable Velocidad = new OutputVariable();
+Velocidad.setName("Velocidad");
+Velocidad.setDescription("Velocidad de la nave");
+Velocidad.setEnabled(true);
+Velocidad.setRange(0, 1000);
+Velocidad.setLockValueInRange(false);
+Velocidad.setAggregation(new Maximum());
+Velocidad.setDefuzzifier(new Centroid(100)); //tal vez cambiar a 1000
+Velocidad.setDefaultValue(Double.NaN);
+Velocidad.setLockPreviousValue(false);
+Velocidad.addTerm(new Ramp("MUY_DESPACIO", 120, 10));
+Velocidad.addTerm(new Trapezoid("DESPACIO", 100, 150, 250, 300));
+Velocidad.addTerm(new Trapezoid("RAPIDO", 200, 300, 500, 600));
+Velocidad.addTerm(new Trapezoid("MUY_RAPIDO", 500, 600, 700, 800));
+Velocidad.addTerm(new Ramp("MAXIMA_VELOCIDAD", 700, 950)); //Seguir aqui
+engine.addOutputVariable(Velocidad);
+
+RuleBlock mamdani = new RuleBlock();
+mamdani.setName("mamdani");
+mamdani.setDescription("Min Max");
+mamdani.setEnabled(true);
+mamdani.setConjunction(new Minimum());
+mamdani.setDisjunction(null);
+mamdani.setImplication(new Minimum());
+mamdani.setActivation(new General());
+mamdani.addRule(Rule.parse("if Angulo is PEQUEÑO and Distancia is CERCANA then Velocidad is MUY_DESPACIO", engine));
+mamdani.addRule(Rule.parse("if Angulo is MEDIANO and Distancia is CERCANA then Velocidad is DESPACIO", engine));
+mamdani.addRule(Rule.parse("if Angulo is GRANDE and Distancia is CERCANA then Velocidad is RAPIDO", engine));
+mamdani.addRule(Rule.parse("if Angulo is PEQUEÑO and Distancia is LEJANA then Velocidad is DESPACIO", engine));
+mamdani.addRule(Rule.parse("if Angulo is MEDIANO and Distancia is LEJANA then Velocidad is RAPIDO", engine));
+mamdani.addRule(Rule.parse("if Angulo is GRANDE and Distancia is LEJANA then Velocidad is MUY_RAPIDO", engine));
+mamdani.addRule(Rule.parse("if Angulo is PEQUEÑO and Distancia is MUY_LEJANA then Velocidad is MUY_RAPIDO", engine));
+mamdani.addRule(Rule.parse("if Angulo is MEDIANO and Distancia is MUY_LEJANA then Velocidad is MUY_RAPIDO", engine));
+mamdani.addRule(Rule.parse("if Angulo is GRANDE and Distancia is MUY_LEJANA then Velocidad is MAXIMA_VELOCIDAD", engine));
+engine.addRuleBlock(mamdani);
+
+//Uso del sistema
+engine.setInputValue("Angulo",45);
+engine.process();
+engine.setInputValue("Distancia",60);
+engine.process();
+double time=engine.getOutputValue("Velocidad");
+
+System.out.println("La Velocidad de la nave para una Angulo de 45 grados y una Distancia de 60km es: " + String.valueOf(time));
+}
+}
